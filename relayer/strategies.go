@@ -36,6 +36,8 @@ func (r *Path) GetStrategy() (Strategy, error) {
 	switch r.Strategy.Type {
 	case (&NaiveStrategy{}).GetType():
 		return &NaiveStrategy{}, nil
+	case (&FishStrategy{}).GetType():
+		return &FishStrategy{}, nil
 	default:
 		return nil, fmt.Errorf("invalid strategy: %s", r.Strategy.Type)
 	}

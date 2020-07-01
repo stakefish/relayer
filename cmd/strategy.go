@@ -43,7 +43,43 @@ func GetStrategyWithOptions(cmd *cobra.Command, strategy relayer.Strategy) (rela
 
 		// set max length messages in relay transaction
 		ns.MaxMsgLength = msgLen
+		fmt.Println("Loaded NAIVE Strategy!")
 
+		return ns, nil
+	case (&relayer.FishStrategy{}).GetType():
+		ns, ok := strategy.(*relayer.FishStrategy)
+		if !ok {
+			return strategy, fmt.Errorf("strategy.GetType() returns fish, but strategy type (%T) is not type FishStrategy", strategy)
+
+		}
+
+		maxTxSize, err := cmd.Flags().GetString(flagMaxTxSize)
+		if err != nil {
+			return ns, err
+		}
+
+		txSize, err := strconv.ParseUint(maxTxSize, 10, 64)
+		if err != nil {
+			return ns, err
+		}
+
+		// set max size of messages in a relay transaction
+		ns.MaxTxSize = txSize * MB // in MB
+
+		maxMsgLength, err := cmd.Flags().GetString(flagMaxMsgLength)
+		if err != nil {
+			return ns, err
+		}
+
+		msgLen, err := strconv.ParseUint(maxMsgLength, 10, 64)
+		if err != nil {
+			return ns, err
+		}
+
+		// set max length messages in relay transaction
+		ns.MaxMsgLength = msgLen
+
+		fmt.Println("Loaded FISH Strategy!")
 		return ns, nil
 	default:
 		return strategy, nil

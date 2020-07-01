@@ -43,15 +43,63 @@ func xfersend() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			
-			done := c[dst].UseSDKContext() 
+
+			done := c[dst].UseSDKContext()
 			dstAddr, err := sdk.AccAddressFromBech32(args[4])
 			if err != nil {
 				return err
 			}
-			done ()
-			
+			done()
+
 			return c[src].SendTransferMsg(c[dst], amount, dstAddr, source)
+		},
+	}
+	return pathFlag(cmd)
+}
+
+func xfersendalot() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "xfer-send-alot [src-chain-id] [dst-chain-id] [amount] [source] [dst-addr] [msg-number]",
+		Short: "xfer-send-alot",
+		Long:  "This sends tokens from a relayers configured wallet on chain src to a dst addr on dst, producing a lot of ibc messages in same transaction",
+		Args:  cobra.ExactArgs(6),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			src, dst := args[0], args[1]
+			c, err := config.Chains.Gets(src, dst)
+			if err != nil {
+				return err
+			}
+
+			pth, err := cmd.Flags().GetString(flagPath)
+			if err != nil {
+				return err
+			}
+
+			if _, err = setPathsFromArgs(c[src], c[dst], pth); err != nil {
+				return err
+			}
+
+			amount, err := sdk.ParseCoin(args[2])
+			if err != nil {
+				return err
+			}
+
+			source, err := strconv.ParseBool(args[3])
+			if err != nil {
+				return err
+			}
+
+			dstAddr, err := sdk.AccAddressFromBech32(args[4])
+			if err != nil {
+				return err
+			}
+
+			msgNumber, err := strconv.ParseInt(args[5], 10, 64)
+			if err != nil {
+				return err
+			}
+
+			return c[src].SendMultipleTransferMsg(c[dst], amount, dstAddr, source, msgNumber)
 		},
 	}
 	return pathFlag(cmd)

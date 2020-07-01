@@ -17,7 +17,7 @@ var (
 	defaultIBCVersions     = []string{defaultIBCVersion}
 	defaultTransferVersion = "ics20-1"
 	defaultUnbondingTime   = time.Hour * 504 // 3 weeks in hours
-	defaultMaxClockDrift   = time.Second * 10
+	defaultMaxClockDrift   = time.Hour * 2
 	defaultPacketTimeout   = 1000
 	defaultPacketSendQuery = "send_packet.packet_src_channel=%s&send_packet.packet_sequence=%d"
 	// defaultPacketAckQuery  = "recv_packet.packet_src_channel=%s&recv_packet.packet_sequence=%d"
@@ -167,6 +167,43 @@ func (src *Chain) SendTransferMsg(dst *Chain, amount sdk.Coin, dstAddr sdk.AccAd
 
 	if txs.Send(src, dst); !txs.success {
 		return fmt.Errorf("failed to send transfer message")
+	}
+	return nil
+}
+
+// SendMultipleTransferMsg initiates multiple ibs20 transfer from src to dst with the specified args
+func (src *Chain) SendMultipleTransferMsg(dst *Chain, amount sdk.Coin, dstAddr sdk.AccAddress, source bool, msgNumber int64) error {
+	if source {
+		amount.Denom = fmt.Sprintf("%s/%s/%s", dst.PathEnd.PortID, dst.PathEnd.ChannelID, amount.Denom)
+	} else {
+		amount.Denom = fmt.Sprintf("%s/%s/%s", src.PathEnd.PortID, src.PathEnd.ChannelID, amount.Denom)
+	}
+
+	dstHeader, err := dst.UpdateLiteWithHeader()
+	if err != nil {
+		return err
+	}
+
+	// Properly render the address string
+	done := dst.UseSDKContext()
+	dstAddrString := dstAddr.String()
+	done()
+
+	// // MsgTransfer will call SendPacket on src chain
+	txs := RelayMsgs{
+		Src: []sdk.Msg{},
+		Dst: []sdk.Msg{},
+	}
+
+	for i := int64(0); i < msgNumber; i++ {
+		txs.Src = append(txs.Src, src.PathEnd.MsgTransfer(
+			dst.PathEnd, dstHeader.GetHeight(), sdk.NewCoins(amount), dstAddrString, src.MustGetAddress(),
+		))
+	}
+
+	// fmt.Printf("len=%d cap=%d %v\n", len(txs.Src), cap(txs.Src), txs.Src)
+	if txs.Send(src, dst); !txs.success {
+		return fmt.Errorf("failed to send transfer messages")
 	}
 	return nil
 }
